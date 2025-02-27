@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django migrations
+*/migrations/*
+!*/migrations/__init__.py
+
+# Environment variables
+.env
+
+# Virtual environment
+venv/
+.env/
+
+# Database files
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Media and static files
+media/
+staticfiles/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# Pytest cache
+.pytest_cache/
+
+# Celery beat schedule
+celerybeat-schedule
+
+# Local settings
+local_settings.py
