@@ -5,3 +5,4 @@ import uuid
 
 class CustomUser(AbstractUser):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False) 
+    is_authorized = models.BooleanField(default=False)
