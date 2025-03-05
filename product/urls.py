@@ -1,8 +1,13 @@
 from django.urls import path
-from .views import CreateOrderView, AllDetailsView, CreateProductView
+from .views import CreateOrderView, AllDetailsView, CreateProductView, CategoryListView, SubcategoryByCategoryView, ProductBySubcategoryView, ProductView, ProductDetail
 
 urlpatterns=[
     path("order", CreateOrderView.as_view(), name="create-order"),
     path("all", AllDetailsView.as_view(), name="all"),
     path("product/create", CreateProductView.as_view(), name="create-product"),
+    path("category", CategoryListView.as_view(), name="category"),
+    path("sub-category/<int:category_id>",SubcategoryByCategoryView.as_view(), name="sub-category"),
+    path("product-subcatgeory/<int:subcategory_id>",ProductBySubcategoryView.as_view(), name="product-subcatgeory"),
+    path("products", ProductView.as_view(), name="products"),
+    path("product-detail/<uuid:product_id>", ProductDetail.as_view(), name="product-detail")
 ]

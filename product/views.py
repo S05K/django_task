@@ -1,10 +1,10 @@
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Product, Order, Size, Printing
-from .serializers import OrderSerializer, ProductSerializer
+from .models import Product, Order, Size, Printing, Category, Subcategory
+from .serializers import OrderSerializer, ProductSerializer, CategorySerializer, SubcategorySerializer
 # Create your views here.
 
 class AllDetailsView(APIView):
@@ -79,3 +79,52 @@ class CreateProductView(APIView):
             serializer.save()
             return Response({"message": "Product created successfully!", "product": serializer.data}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ProductView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self,request):
+        products = Product.objects.all()
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CategoryListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        categories = Category.objects.all()
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+class SubcategoryByCategoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, category_id):
+        category = get_object_or_404(Category, id=category_id)
+        subcategories = Subcategory.objects.filter(parent_category=category)
+        serializer = SubcategorySerializer(subcategories, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ProductBySubcategoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, subcategory_id):
+        subcategory = get_object_or_404(Subcategory, id=subcategory_id)
+        products = Product.objects.filter(subcategory=subcategory)
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+class ProductDetail(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self,request,product_id):
+        product = Product.objects.get(id=product_id)
+        serializer = ProductSerializer(product)
+        return Response(serializer.data,status=status.HTTP_200_OK)

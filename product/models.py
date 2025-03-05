@@ -2,6 +2,26 @@ from django.db import models
 from my_app.models import CustomUser
 import uuid
 
+
+class Category(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    image = models.ImageField(upload_to='categories/')
+    thumbnail = models.ImageField(upload_to='categories/thumbnails/')
+
+    def __str__(self):
+        return self.name
+
+
+class Subcategory(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    parent_category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="subcategories")
+    image = models.ImageField(upload_to='subcategories/')
+    thumbnail = models.ImageField(upload_to='subcategories/thumbnails/')
+
+    def __str__(self):
+        return f"{self.name} - {self.parent_category.name}"
+
+
 class Size(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
@@ -22,7 +42,7 @@ class Product(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
     base_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Base price before multipliers")
-
+    subcategory = models.ForeignKey(Subcategory, on_delete=models.CASCADE, related_name="products", null=True)
     def __str__(self):
         return self.name
 
@@ -44,3 +64,12 @@ class Order(models.Model):
 
     def __str__(self):
         return f"Order {self.id} by {self.user.username}"
+
+
+class ProductImage(models.Model):
+    product = models.ForeignKey("Product", on_delete=models.CASCADE, related_name="images")
+    image = models.ImageField(upload_to="products/images/")
+    thumbnail = models.ImageField(upload_to="products/thumbnails/")
+
+    def __str__(self):
+        return f"Image for {self.product.name}"

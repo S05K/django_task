@@ -38,3 +38,7 @@ celerybeat-schedule
 
 # Local settings
 local_settings.py
+
+products/
+subcategories/
+categories/
