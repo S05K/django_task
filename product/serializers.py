@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, Product, Category, Subcategory, ProductImage, Printing, Size
+from .models import Order, Product, Category, Subcategory, ProductImage, Printing, Size, Cart
 
 
 
@@ -57,3 +57,15 @@ class ProductSerializer(serializers.ModelSerializer):
     def get_parent_category(self, obj):
         return obj.subcategory.parent_category.name if obj.subcategory else None
 
+
+
+class CartSerializer(serializers.ModelSerializer):
+    images = ProductImageSerializer(many=True, read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_price = serializers.DecimalField(source='product.base_price', max_digits=10, decimal_places=2, read_only=True)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+
+    class Meta:
+        model = Cart
+        fields = ['id', 'user', 'product', 'product_name', 'product_price', 'size', 'printing', 'quantity', 'total_price','images', 'added_at']
+        read_only_fields = ['total_price']

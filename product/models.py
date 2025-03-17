@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from my_app.models import CustomUser
 import uuid
@@ -73,3 +74,24 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Image for {self.product.name}"
+
+class Cart(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="cart")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    size = models.ForeignKey(Size, on_delete=models.SET_NULL, null=True, blank=True)
+    printing = models.ForeignKey('Printing', on_delete=models.SET_NULL, null=True, blank=True)
+    quantity = models.PositiveIntegerField(default=1)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def total_price(self):
+        """Ensure multiplication works properly."""
+        breakpoint()
+        if self.product and self.size and self.printing:
+            return (self.product.base_price) * Decimal(self.size.price_multiplier) * Decimal(self.printing.price_multiplier) * self.quantity
+
+    def __str__(self):
+        return f"{self.quantity} x {self.product.name} - {self.user.username}"
+
+
+
