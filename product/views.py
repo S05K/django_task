@@ -1,49 +1,36 @@
+import json
+from django.http import QueryDict
 from django.shortcuts import get_object_or_404, render
 from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
-from .models import Cart, Product, Order, Size, Printing, Category, Subcategory
+from .pagination import ProductPagination
+from .models import Cart, Product, Order, ProductImage, Size, Printing, Category, Subcategory
 from .serializers import CartSerializer, OrderSerializer, ProductSerializer, CategorySerializer, SubcategorySerializer
+from rest_framework.parsers import MultiPartParser, FormParser
+
 # Create your views here.
-
-class AllDetailsView(APIView):
-    def get(self,request):
-        a=Product.objects.first()
-        b=Size.objects.first()
-        c=Printing.objects.first()
-        print([a.id, b.id, c.id])
-        return Response({"Hello":"World"})
-    
-
-
-
 class CreateOrderView(APIView):
     permission_classes = [IsAuthenticated]  # Only logged-in users can order
 
     def post(self, request):
         user = request.user
         product_id = request.data.get("product_id")
-        size_id = request.data.get("size_id")
-        printing_id = request.data.get("printing_id")
         quantity = request.data.get("quantity")
 
         # Validating input data
-        if not all([product_id, size_id, printing_id, quantity]):
+        if not all([product_id, quantity]):
             return Response({"error": "All fields are required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             product = Product.objects.get(id=product_id)
-            size = Size.objects.get(id=size_id)
-            printing = Printing.objects.get(id=printing_id)
             quantity = int(quantity)
 
             # Create Order
             order = Order.objects.create(
                 user=user,
                 product=product,
-                size=size,
-                printing=printing,
                 quantity=quantity
             )
 
@@ -211,3 +198,141 @@ class CartView(APIView):
             return Response({"message": "Item removed from cart"}, status=status.HTTP_204_NO_CONTENT)
         except Cart.DoesNotExist:
             return Response({"error": "Item not found in cart"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class CategoryCreateViewByAdmin(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            user = request.user
+            serializer = CategorySerializer(data=request.data)
+            if user.is_authorized:
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'Error': "You are not admin"}, status=status.HTTP_409_CONFLICT)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+
+    def get(self,request):
+        try:
+            category_data = Category.objects.all()
+            serializer = CategorySerializer(category_data,many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
+class ProductCreateViewByAdmin(APIView):
+    permission_classes = [IsAuthenticated]  
+    parser_classes = (MultiPartParser, FormParser)  # Allow form-data parsing
+
+    def post(self, request):
+        user = request.user  
+        if not user.is_authorized:
+            return Response({'error': 'You are not authorized to create a product'}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            # Copy request data to make it mutable
+            data = request.data.dict()
+
+            options_data = data.get("options")
+            if options_data:
+                try:
+                    options_data = json.loads(options_data)  
+                    data["options"] = options_data  
+                except json.JSONDecodeError:
+                    return Response({"error": "Invalid JSON format for options"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Serialize and validate product data
+            serializer = ProductSerializer(data=data)
+            if serializer.is_valid():
+                product = serializer.save()
+
+                # Handle image uploads (if any)
+                images = request.FILES.getlist("images")  # Expecting multiple images
+                for image in images:
+                    ProductImage.objects.create(product=product, image=image)
+
+                return Response(
+                    {"message": "Product created successfully!", "product": serializer.data}, 
+                    status=status.HTTP_201_CREATED
+                )
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response(
+                {"error": "An error occurred while creating the product", "details": str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def get(self, request):
+        try:
+            category_id = request.query_params.get('category_id')
+            products = Product.objects.filter(category_id=category_id) if category_id else Product.objects.all()
+
+            # Apply pagination
+            paginator = ProductPagination()
+            paginated_products = paginator.paginate_queryset(products, request)
+
+            serializer = ProductSerializer(paginated_products, many=True)
+            return paginator.get_paginated_response(serializer.data)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SpecificPoductView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, product_id):
+        try:
+            product = Product.objects.get(id=product_id)  
+            serializer = ProductSerializer(product)  
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Product.DoesNotExist:
+            return Response({"error": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+    def put(self, request, product_id):
+        user = request.user
+        if not user.is_authorized:
+            return Response({'Error':'You are not admin'}, status=status.HTTP_401_UNAUTHORIZED)
+        try:
+            product = Product.objects.get(id=product_id)  
+            serializer = ProductSerializer(instance=product, data=request.data, partial=True)  # Update product
+            
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        except Product.DoesNotExist:
+            return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+    def delete(self, request, product_id):
+        try:
+            user = request.user
+            if not user.is_authorized:
+                return Response({'error': 'You are not authorized'}, status=status.HTTP_401_UNAUTHORIZED)
+
+            product = Product.objects.get(id=product_id)  # Try fetching the product
+            product.delete()
+            return Response({'message': "Product deleted successfully"}, status=status.HTTP_200_OK)
+
+        except Product.DoesNotExist:
+            return Response({'error': 'Product not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

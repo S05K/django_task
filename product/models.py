@@ -1,5 +1,7 @@
 from decimal import Decimal
+import json
 from django.db import models
+from django.forms import JSONField
 from my_app.models import CustomUser
 import uuid
 
@@ -24,7 +26,6 @@ class Subcategory(models.Model):
 
 
 class Size(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=100, unique=True)
     price_multiplier = models.DecimalField(max_digits=5, decimal_places=2, help_text="Multiplier for base price")
 
@@ -32,7 +33,6 @@ class Size(models.Model):
         return self.name
 
 class Printing(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     quality = models.CharField(max_length=100, unique=True)
     price_multiplier = models.DecimalField(max_digits=5, decimal_places=2, help_text="Multiplier for base price")
 
@@ -40,19 +40,38 @@ class Printing(models.Model):
         return self.quality
 
 class Product(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
-    base_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Base price before multipliers")
-    subcategory = models.ForeignKey(Subcategory, on_delete=models.CASCADE, related_name="products", null=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="products", null=True)
+    base_price = models.DecimalField(max_digits=10, decimal_places=2, help_text="Base price before options")
+    minimum_qty = models.PositiveIntegerField(default=1, help_text="Minimum quantity for an order")
+    qty_step_count = models.PositiveIntegerField(default=1, help_text="Step count for ordering in multiples")
+    vat_percent = models.FloatField(default=0.0, help_text="VAT percentage applied")
+    
+    # Pamphlet customization fields
+    options = models.JSONField(default=dict, blank=True, help_text="Customization options (e.g., text, colors, numbers)")
+    additional_design_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0.0, help_text="Additional charge for custom design")
+    image_description = models.TextField(blank=True, null=True, help_text="Description for images related to this product")
+    delivery_charges = models.DecimalField(max_digits=10, decimal_places=2, default=0.0, help_text="Delivery charges for this product")
+
+    def set_options(self, options_dict):
+        """ Save dictionary as JSON string """
+        self.options = json.dumps(options_dict)
+
+    def get_options(self):
+        """ Convert stored JSON string back to dictionary """
+        try:
+            return json.loads(self.options)
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+
     def __str__(self):
         return self.name
 
 class Order(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    size = models.ForeignKey(Size, on_delete=models.CASCADE)
-    printing = models.ForeignKey(Printing, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     file_option = models.CharField(max_length=20, choices=[("online", "Attach file Online"), ("email", "Send file via Email")], null=True)
     special_remark = models.TextField(blank=True, null=True)

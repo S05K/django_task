@@ -4,18 +4,18 @@ from .models import Order, Product, Category, Subcategory, ProductImage, Printin
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    image = serializers.SerializerMethodField()
-    thumbnail = serializers.SerializerMethodField()
+    image = serializers.ImageField(use_url=True)
+    # thumbnail = serializers.SerializerMethodField()
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'image', 'thumbnail']
+        fields = ['id', 'name', 'image']
 
     def get_image(self, obj):
         return obj.image.url if obj.image else None
 
-    def get_thumbnail(self, obj):
-        return obj.thumbnail.url if obj.thumbnail else None
+    # def get_thumbnail(self, obj):
+    #     return obj.thumbnail.url if obj.thumbnail else None
 
 
 class SubcategorySerializer(serializers.ModelSerializer):
@@ -38,7 +38,7 @@ class OrderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ["id", "product", "size", "printing", "quantity", "total_price", "created_at"]
+        fields = ["id", "product", "quantity", "total_price", "created_at"]
 
 class ProductImageSerializer(serializers.ModelSerializer):
     class Meta:
@@ -47,15 +47,19 @@ class ProductImageSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
     images = ProductImageSerializer(many=True, read_only=True)
-    subcategory = SubcategorySerializer()
-    parent_category = serializers.SerializerMethodField()
-
+    # parent_category = serializers.SerializerMethodField()
+    
     class Meta:
         model = Product
-        fields = ["id", "name", "base_price",'subcategory', 'parent_category', 'images']
+        fields = [
+             "name", "base_price", "category", "minimum_qty", "qty_step_count",
+            "vat_percent", "options", "additional_design_charge", "image_description",
+            "delivery_charges", "images"
+        ]
 
     def get_parent_category(self, obj):
-        return obj.subcategory.parent_category.name if obj.subcategory else None
+        return obj.category.parent.name if obj.category and obj.category.parent else None
+
 
 
 
@@ -69,3 +73,6 @@ class CartSerializer(serializers.ModelSerializer):
         model = Cart
         fields = ['id', 'user', 'product', 'product_name', 'product_price', 'size', 'printing', 'quantity', 'total_price','images', 'added_at']
         read_only_fields = ['total_price']
+
+
+
